@@ -1,127 +1,161 @@
-# 📌 IoT Project – API Simples em Rust com Axum + PostgreSQL
+# 📡 IoT Project – ESP32 + Rust + PostgreSQL + MQTT + 3D Viewer
 
-Este projeto é uma API básica feita em **Rust** usando **Axum** e **SQLx**.  
-Ela permite:
-
-- ✅ Inserir dados no banco via `POST /items`
-- ✅ Listar dados em JSON via `GET /items`
-- ✅ Visualizar os dados em uma página HTML via `GET /`
+Este projeto integra sensores de um **ESP32** (BNO055 + Ultrassônico) via **MQTT**, armazena os dados em um banco **PostgreSQL** usando uma API em **Rust (Axum + SQLx)** e exibe em tempo real em uma página web com **Three.js** (cubo 3D que gira e escala conforme os sensores).
 
 ---
 
-## 📂 Estrutura do Projeto
+## 🔧 Tecnologias
+
+- **Rust + Axum** → API web e servidor WebSocket
+- **SQLx + PostgreSQL** → persistência dos dados dos sensores
+- **paho-mqtt** → cliente MQTT assíncrono em Rust
+- **Three.js** → renderização do cubo 3D no navegador
+- **ESP32 + PubSubClient** → publica JSON no broker MQTT
+
+---
+
+## 📦 Estrutura
 
 ```
 iot_project/
- ├─ Cargo.toml        # Dependências do projeto
- ├─ .env              # Configurações de ambiente (não versionar!)
- └─ src/
-     ├─ main.rs       # Entrada da aplicação
-     ├─ db.rs         # Conexão e schema do banco
-     └─ models.rs     # Estruturas de dados (DTOs)
+ ├─ src/
+ │   ├─ main.rs      # servidor principal
+ │   ├─ db.rs        # inicialização banco
+ │   ├─ models.rs    # structs (Item + SensorPayload)
+ ├─ Cargo.toml
+ ├─ .env
+ └─ README.md
 ```
 
 ---
 
-## ⚙️ Dependências principais
+## 🗄️ Banco de Dados
 
-- [Axum](https://github.com/tokio-rs/axum) – framework web em Rust
-- [Tokio](https://tokio.rs/) – runtime assíncrono
-- [SQLx](https://github.com/launchbadge/sqlx) – ORM para Rust
-- [dotenvy](https://github.com/allan2/dotenvy) – leitura de variáveis do `.env`
-- [UUID](https://crates.io/crates/uuid) – geração de IDs únicos
+Crie a tabela no PostgreSQL:
 
----
-
-## 🔑 Configuração do Banco de Dados
-
-### 1. Criar banco no PostgreSQL
-Entre no `psql` e rode:
 ```sql
-CREATE DATABASE iot_project;
-CREATE USER iot_user WITH PASSWORD 'SenhaForteAqui!';
-GRANT ALL PRIVILEGES ON DATABASE iot_project TO iot_user;
+CREATE TABLE IF NOT EXISTS items (
+    id UUID PRIMARY KEY,
+    nome TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sensor_data (
+    id SERIAL PRIMARY KEY,
+    ts TIMESTAMP NOT NULL,
+    device TEXT NOT NULL,
+    wifi_rssi INT,
+    bno_ok BOOL,
+    heading_deg FLOAT,
+    roll_deg FLOAT,
+    pitch_deg FLOAT,
+    temp_c FLOAT,
+    accel_x FLOAT,
+    accel_y FLOAT,
+    accel_z FLOAT,
+    gyro_x FLOAT,
+    gyro_y FLOAT,
+    gyro_z FLOAT,
+    mag_x FLOAT,
+    mag_y FLOAT,
+    mag_z FLOAT,
+    calib_sys INT,
+    calib_gyro INT,
+    calib_accel INT,
+    calib_mag INT,
+    ultrasonic_cm FLOAT
+);
 ```
 
-### 2. Configurar `.env`
-Crie o arquivo `.env` na raiz do projeto:
+---
+
+## ⚙️ Configuração
+
+Crie o arquivo **`.env`**:
 
 ```env
-DATABASE_URL=postgres://iot_user:SenhaForteAqui!@localhost:5432/iot_project
+DATABASE_URL=postgres://usuario:senha@localhost:5432/iot_db
 ```
-
-⚠️ Se sua senha tiver caracteres especiais (`! ? @ $ " ...`), use **percent-encoding**.  
-Exemplo: `Senha!123` → `Senha%21123`.
 
 ---
 
-## ▶️ Rodando o Projeto
+## ▶️ Rodando
 
-### 1. Clonar e entrar na pasta
 ```bash
-git clone ...
-cd iot_project
-```
+# 1. Instalar dependências do sistema
+sudo apt update
+sudo apt install -y cmake libssl-dev build-essential pkg-config
 
-### 2. Compilar
-```bash
+# 2. Build do projeto
 cargo build
-```
 
-### 3. Rodar
-```bash
+# 3. Executar
 cargo run
 ```
 
-### 4. Saída esperada
+Ao rodar, você verá:
+
 ```
-✅ Conectado ao banco PostgreSQL em: postgres://iot_user@localhost:5432/iot_project
-🚀 Servidor rodando em http://0.0.0.0:42351
-```
-
-> A porta é aleatória (escolhida pelo SO). Veja no log qual porta foi aberta.
-
----
-
-## 🔍 Testando a API
-
-### Inserir um item
-```bash
-curl -X POST http://localhost:42351/items   -H "Content-Type: application/json"   -d '{"nome":"Sensor de Temperatura"}'
-```
-
-### Listar itens em JSON
-```bash
-curl http://localhost:42351/items
-```
-
-### Ver página HTML
-Abra no navegador:
-```
-http://localhost:42351
+✅ Conectado ao banco PostgreSQL em: postgres://...
+📡 Inscrito no tópico devices/esp32/+/state
+🚀 Servidor rodando em http://127.0.0.1:43625
 ```
 
 ---
 
-## 🛠️ Problemas comuns
+## 🌐 Endpoints
 
-- **`pool timed out while waiting for an open connection`**  
-  → Banco não está rodando ou senha incorreta no `.env`.  
-  → Teste conexão manual com:
-  ```bash
-  psql $DATABASE_URL
-  ```
-
-- **Senha com caracteres especiais não funciona**  
-  → Use **percent-encoding** no `.env`.
-
-- **Porta muda a cada execução**  
-  → O servidor usa porta aleatória (`0.0.0.0:0`). Veja no log a porta atual.
+- `GET /` → página HTML com cubo 3D
+- `GET /ws` → WebSocket com streaming de dados
+- `GET /items` → lista de itens cadastrados
+- `POST /items` → cria item (JSON `{ "nome": "teste" }`)
+- `GET /data` → últimos 50 registros
+- `GET /data/:device` → últimos 50 registros de um device específico
 
 ---
 
-## 📌 Próximos Passos
+## 🎮 Página 3D
 
-- Adicionar autenticação JWT
-- Criar endpoints de atualização (`PUT /items/:id`) e exclusão (`DELETE /items/:id`)
-- Subir em um container com Docker Compose (Postgres + API)  
+A página `/` abre um cubo 3D:
+- Rotação baseada em **Yaw/Pitch/Roll** do BNO055
+- Escala baseada no **ultrassônico**
+- HUD mostra dados ao vivo (`device`, `yaw`, `pitch`, `roll`, `distância`)
+
+---
+
+## 📡 ESP32 → MQTT JSON
+
+O ESP32 publica em `devices/esp32/<deviceId>/state` um JSON como:
+
+```json
+{
+  "ts": 1758928169,
+  "device": "4C1C1CBF713C",
+  "wifi": { "rssi": -53 },
+  "bno055": {
+    "ok": true,
+    "heading_deg": 348.8,
+    "roll_deg": 1.3,
+    "pitch_deg": -47.4,
+    "temp_c": 26,
+    "linear_accel_ms2": { "x": -0.05, "y": -0.05, "z": -0.03 },
+    "gyro_rads": { "x": 0, "y": 0, "z": -0.002 },
+    "mag_uT": { "x": -16.2, "y": -11.6, "z": 18 },
+    "calib": { "sys": 0, "gyro": 3, "accel": 1, "mag": 1 }
+  },
+  "ultrasonic_cm": 27.7
+}
+```
+
+Este payload é automaticamente:
+1. Armazenado no **Postgres**
+2. Enviado via **WebSocket** para os navegadores conectados
+
+---
+
+## ✅ Conclusão
+
+Com isso você tem:
+- Captura de dados do ESP32 via MQTT
+- Armazenamento confiável em Postgres
+- API e rotas REST em Rust
+- Streaming em tempo real para front-end 3D
