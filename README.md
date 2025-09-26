@@ -1,6 +1,7 @@
 # 📡 IoT Project – ESP32 + Rust + PostgreSQL + MQTT + 3D Viewer
 
 #GABRIEL, EDUARDO
+
 Este projeto integit gra sensores de um **ESP32** (BNO055 + Ultrassônico) via **MQTT**, armazena os dados em um banco **PostgreSQL** usando uma API em **Rust (Axum + SQLx)** e exibe em tempo real em uma página web com **Three.js** (cubo 3D que gira e escala conforme os sensores).
 
 ---
