@@ -1,0 +1,1 @@
+/home/reald/Desktop/IoT-Internet-of-Things/iot_project/target/debug/iot_project: /home/reald/Desktop/IoT-Internet-of-Things/iot_project/src/db.rs /home/reald/Desktop/IoT-Internet-of-Things/iot_project/src/main.rs /home/reald/Desktop/IoT-Internet-of-Things/iot_project/src/models.rs
