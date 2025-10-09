@@ -200,18 +200,33 @@ Requisitos obrigatórios e status deste projeto:
 Representação simplificada do fluxo esperado:
 
 ```
-+-----------+     +------------------+     +-----------------+     +-----------------------+
-| BNO055    | --> |                  | --> |                 | --> | Dashboard/Web (3D)    |
-+-----------+     |      ESP32       |     |   Broker MQTT   |     | (WebSocket + Three.js)|
-+-----------+     |  (publica JSON   |     | (test.mosquitto)|     +-----------------------+
-| Ultrassom | --> |  por tópico)     |     |                 |
 +-----------+     +------------------+     +-----------------+
+| BNO055    | --> |      ESP32       | --> |   Broker MQTT   |
++-----------+     | (publica por     |     | (test.mosquitto)|
++-----------+     |  tópico/JSON)    |     +-----------------+
+| Ultrassom | --> +------------------+
++-----------+
+                          |
+                          v (assinatura)
+               +------------------------------+        +------------------+
+               |  Cliente Rust (Axum + MQTT) | -----> |  PostgreSQL DB   |
+               |  - Assina tópicos           |        +------------------+
+               |  - Persiste em Postgres     |
+               |  - Broadcast via WebSocket  |
+               +---------------+--------------+
+                               |
+                               v
+                    +-----------------------------+
+                    |   Dashboard Web (Three.js) |
+                    +-----------------------------+
 ```
 
 Quando separar por sensor, tópicos sugeridos:
 - `devices/esp32/<deviceId>/bno055` → payload só do IMU
 - `devices/esp32/<deviceId>/ultrasonic` → payload só do ultrassom
 - `devices/esp32/<deviceId>/status` → LWT online/offline (retained)
+
+Observação: o banco de dados participa no caminho do dado via o cliente Rust, que assina os tópicos no broker, grava em PostgreSQL e transmite em tempo real aos navegadores conectados.
 
 ---
 
