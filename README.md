@@ -161,3 +161,88 @@ Com isso você tem:
 - Armazenamento confiável em Postgres
 - API e rotas REST em Rust
 - Streaming em tempo real para front-end 3D
+
+---
+
+## ✅ Checklist da Atividade Avaliativa (IoT + MQTT)
+
+Requisitos obrigatórios e status deste projeto:
+
+- Utilizar pelo menos 2 sensores diferentes — OK
+  - Sensores: `BNO055 (IMU)` e `Ultrassônico (HC-SR04)`
+- Utilizar pelo menos um atuador — PENDENTE
+  - Sugestões: `LED/Buzzer` acionado por distância (ultrassônico) ou inclinação (IMU)
+- Cada sensor deve publicar seus dados em um tópico MQTT distinto — PENDENTE
+  - Atual: ambos os sensores publicados juntos em `devices/esp32/<deviceId>/state`
+  - Proposta: publicar separadamente em `devices/esp32/<deviceId>/bno055` e `devices/esp32/<deviceId>/ultrasonic`
+- Dispositivo (ESP32) envia leituras ao broker MQTT — OK
+  - Broker: `test.mosquitto.org` porta `1883`
+- Aplicação cliente assina tópicos e apresenta dados em tempo real — OK
+  - Cliente em Rust (`axum` + `paho-mqtt`) com página 3D (`Three.js`) via WebSocket
+- Fluxograma mostrando funcionamento do sistema — PENDENTE
+  - Incluir em `docs/fluxograma.png` ou link para `draw.io`
+- Relatório final (PDF) com introdução, objetivos, sensores, código, fluxo MQTT, prints, considerações — PENDENTE
+  - Incluir em `docs/relatorio.pdf`
+
+---
+
+## 📦 Entregas Esperadas (GitHub)
+
+- Código-fonte do ESP32 — OK (`ESP32/`)
+- Código/configuração do cliente — OK (`iot_project/`)
+- Fluxograma do sistema — PENDENTE (`docs/fluxograma.(png|pdf)`)
+- Relatório em PDF — PENDENTE (`docs/relatorio.pdf`)
+
+---
+
+## 🧭 Fluxograma (proposta)
+
+Representação simplificada do fluxo esperado:
+
+```
++-----------+     +------------------+     +-----------------+     +-----------------------+
+| BNO055    | --> |                  | --> |                 | --> | Dashboard/Web (3D)    |
++-----------+     |      ESP32       |     |   Broker MQTT   |     | (WebSocket + Three.js)|
++-----------+     |  (publica JSON   |     | (test.mosquitto)|     +-----------------------+
+| Ultrassom | --> |  por tópico)     |     |                 |
++-----------+     +------------------+     +-----------------+
+```
+
+Quando separar por sensor, tópicos sugeridos:
+- `devices/esp32/<deviceId>/bno055` → payload só do IMU
+- `devices/esp32/<deviceId>/ultrasonic` → payload só do ultrassom
+- `devices/esp32/<deviceId>/status` → LWT online/offline (retained)
+
+---
+
+## 📡 MQTT: Tópicos e QoS (atual vs. exigido)
+
+- Publicação atual (ESP32):
+  - `devices/esp32/<deviceId>/state` (QoS 0)
+  - `devices/esp32/<deviceId>/status` LWT retained (QoS 1 na conexão)
+- Assinatura atual (cliente Rust):
+  - `devices/esp32/+/state` (QoS 1)
+- Exigência: um tópico por sensor — PENDENTE
+  - Ação: publicar em dois tópicos e ajustar o cliente para assinar ambos.
+
+---
+
+## 📝 Relatório (guia de conteúdo)
+
+- Introdução: cenário motivador (ex.: estufa, segurança, sala de aula)
+- Objetivos do sistema: o que será medido e acionado
+- Sensores escolhidos e justificativa: por que IMU + ultrassom
+- Estrutura do código (trechos principais comentados): ESP32 + cliente Rust
+- Fluxo MQTT: tópicos usados, QoS, LWT
+- Capturas de tela: página 3D recebendo dados ao vivo
+- Considerações finais: desafios, melhorias (alertas, dashboards, actuator)
+
+---
+
+## 🔧 Plano de Ajustes para atender 100% dos requisitos
+
+- Implementar um atuador simples no ESP32 (LED/Buzzer) e documentar
+- Separar publicação MQTT por sensor (dois tópicos distintos) e ajustar o cliente
+- Adicionar fluxograma do sistema em `docs/fluxograma.png` e referenciar aqui
+- Produzir `docs/relatorio.pdf` com os itens do guia acima
+- Capturar telas do sistema em funcionamento e anexar ao relatório
